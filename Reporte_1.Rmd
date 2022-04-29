@@ -1,0 +1,365 @@
+---
+title: "Reporte Incendios Forestales Semana 1"
+author: "Ariel Coto Tapia"
+date: "3/4/2022"
+output: pdf_document
+---
+
+#Reporte semanal de los Incendios Forestales en México Semana 1
+
+
+Realizaremos el reporte de los incendios forestales ocurridos en México, la base de datos fue proporcionada por CONAFOR, en específico del Departamento de Monitoreo y Estadística de Incendios 
+Cabe recalcar que la estadística del año 2022 es de carácter preliminar, debido a que se tiene ocurrencia de incendios forestales durante todo el año, asimismo, los Centros Estatales de Manejo del Fuego actualmente se encuentran en proceso de integrar y validar dicha información teniendo las cifras definitivas en las primeras semanas de enero del 2023, por lo que los datos de los incendios pueden tener modificaciones a lo largo del año.
+
+
+
+```{r}
+library(sf)
+library(raster)
+library(tidyverse)
+library(ggplot2)
+library(ggthemes)
+library(palmerpenguins)
+theme_set(theme_bw(16))
+library(gt)
+library(flexdashboard)
+
+```
+
+
+
+
+
+```{r data_incendios}
+
+library(readxl)
+
+Incendios <- read_excel("C:/Users/cotot/OneDrive/Desktop/LUZ DE NOCHE/Incendios.xlsx")
+
+```
+
+Observamos la base de datos, y por el momento tengo un cocentrado que se actualiza semanalmente hasta la semana 11, entonces filtraré los datos a la semana 1
+
+
+
+```{r}
+semana_1<- Incendios %>%
+  filter(Semana==1)
+```
+
+En este primer reporte analizaremos las posbiles causas que ocasionan los incendios, la zona (si se puede por desagregación municipal), duración, tamaño.
+ 
+###  Estados con mayor incidencia de incendios 
+ 
+ 
+```{r}
+library(tidyverse)
+Datos_1<-semana_1 %>%
+  group_by(ESTADO,) %>%
+  summarize(incidencias=table(ESTADO))
+  
+
+
+
+
+Estados_mayor_incendios<-Datos_1[order(Datos_1$incidencias,decreasing=TRUE),] 
+  
+
+
+
+
+Area_afectada_x_estado<-semana_1 %>%
+  group_by(ESTADO) %>%
+  summarise(Hectareas_afectadas=sum(`Total ha`))
+
+a<-c("Total",sum(Estados_mayor_incendios$incidencias),"sum(Area_afectada_x_estado$Hectareas_afectadas")
+
+
+tabla1<-left_join(Estados_mayor_incendios,Area_afectada_x_estado,by="ESTADO")%>%
+  rbind(a)
+
+
+
+table(semana_1$`Tipo de atención`)
+
+
+```
+
+
+ 
+ 
+```{r}
+remotes::install_github("jthomasmock/gtExtras")
+library(gtExtras)
+library(svglite)
+
+```
+ 
+ 
+ 
+```{r}
+tabla1 %>% 
+  gt() %>% 
+  gt_theme_nytimes() %>%
+  tab_header(title = "Estados reportados con incendios forestales",subtitle = "Semana 1 | 2022") %>%
+ #  gt_highlight_rows(
+    
+    
+   # bold_target_only = TRUE,
+    #target_col = ESTADO) %>%
+    
+   gt_plt_bar_pct(column = Hectareas_afectadas, scaled = TRUE,fill="red") %>%
+  cols_width(1~ px(125),
+             1 ~ px(125))
+ 
+
+
+```
+ 
+
+
+ 
+ 
+ 
+En la primer semana tenemos un total de 40 incendios, en el que 38 fueron combatidos y solo 2 fueron monitoreados. La Ciudad de México fue el estado con mayor número de incendios en la semana 1, con un total de 10 incendios, seguidos Hidalgo, Jalisco, Estado de México y Puebla con un total de 4 cada uno.
+
+
+
+
+
+
+```{r}
+library(data.table)
+entidades<-st_read("C:/Users/cotot/OneDrive/Desktop/LUZ DE NOCHE/1er_Entrega/Outputs/00ent.shp")
+
+
+NOMGEO<-Estados_mayor_incendios$ESTADO
+
+x<-Estados_mayor_incendios %>%
+  mutate(NOMGEO)
+#Asi se cabian observaciones específicas, estuvo dificil averiguar cómo ....
+entidades[5, 3] <- "Coahuila"
+entidades[30,3] <- "Veracruz"
+
+
+data_primer_mapa<-left_join(entidades,x,by="NOMGEO")
+
+data_primer_mapa_x<-data_primer_mapa %>%
+  filter(!is.na(data_primer_mapa$incidencias))
+
+remove(data_primer_mapa)
+
+```
+
+
+
+```{r}
+
+
+
+data_primer_mapa_x %>%
+  # usamos el aesthetic fill para indicar la columna de casos
+  ggplot(aes(fill = incidencias)) +
+  # cambia el color y el grosor de las líneas
+  geom_sf(colour = "grey75", size = 0.07) +
+  # agrega títulos
+  labs(title = "México: Incendios Forestales",
+       subtitle = "Semana 1, 2022",
+       caption = "Datos: CONAFOR") +
+  # cambia el color de relleno y el título de la leyenda
+  scale_fill_gradient("Total de incendios", high = "red", low = "white") +
+  # retirar el fondo gris
+  theme_bw()
+
+```
+
+#Por municipios.
+
+
+
+
+
+
+
+```{r}
+municipios<-st_read("C:/Users/cotot/OneDrive/Desktop/LUZ DE NOCHE/1er_Entrega/Outputs/00mun.shp")
+
+
+Datos_2<-semana_1 %>%
+  group_by(Municipio,) %>%
+  summarize(incidencias=table(Municipio))
+
+Muns_mayor_incendios<-Datos_2[order(Datos_2$incidencias,decreasing = TRUE),]
+
+
+
+NOMGEO<-Muns_mayor_incendios$Municipio
+
+y<-Muns_mayor_incendios %>%
+  mutate(NOMGEO)
+
+data_segundo_mapa<-left_join(municipios,y,by="NOMGEO")
+
+data_segundo_mapa_y<-data_segundo_mapa %>%
+  filter(!is.na(data_segundo_mapa$incidencias))
+
+remove(data_segundo_mapa)
+
+
+
+```
+
+```{r}
+
+data_segundo_mapa_y %>%
+  # usamos el aesthetic fill para indicar la columna de casos
+  ggplot(aes(fill = incidencias)) +
+  # cambia el color y el grosor de las líneas
+  geom_sf(colour = "grey75", size = 0.07) +
+  # agrega títulos
+  labs(title = "México: Incendios Forestales",
+       subtitle = "Semana 1, 2022",
+       caption = "Datos: CONAFOR") +
+  # cambia el color de relleno y el título de la leyenda
+  scale_fill_gradient("Total de incendios", high = "red", low = "white") +
+  # retirar el fondo gris
+  theme_bw()
+```
+
+
+
+#Posibles causas 
+
+Observamos que tenemos como la mayor causa las "Actividades ilícitas" con un total de 26 de 40 incendios en la semana 1.
+```{r}
+table(semana_1$`Posible Causa`)
+
+Datos3<-semana_1 %>%
+  group_by(`Posible Causa`,) %>%
+  summarize(incidencias=table(`Posible Causa`))
+  
+```
+
+
+```{r}
+
+ final_2<- ggplot(Datos3, aes(x=`Posible Causa`, y=incidencias,
+                            fill=incidencias,labels=Datos3$`Posible Causa`))+ 
+   geom_bar(stat="identity") +
+   labs(title="Posibles Causas de Incendios Forestales México",
+        subtitle="Semana 1",
+        caption=" @coto_tapia | Datasource: CONAFOR",
+        x="Causas",y="Incidencias")+
+   ylim(-50,50) +
+   theme_fivethirtyeight() +
+   
+   theme(
+     
+     axis.text = element_blank(),
+    axis.text.x = element_text(size=7.5,family="Arial Black",angle=0,
+                               vjust = -2,hjust=-5),
+legend.position = "none",
+   )+
+
+   
+   coord_polar(start=0) 
+ 
+ 
+ 
+ final_2
+ 
+
+
+```
+
+#Superficie afectada en Hectareas 
+
+```{r}
+library(tmap)
+
+class(Incendios$`Total ha`)
+#Primero por estado
+
+
+superfice_afect<-semana_1[order(semana_1$`Total ha`,decreasing = TRUE),] %>%
+  filter(`Total ha`>0.01) %>%
+  dplyr::select(ESTADO,Municipio,`Total ha`) %>%
+  mutate(NOMGEO=Municipio) %>%
+  rename(Total_hectarea=`Total ha`)
+
+
+
+data_tercer_mapa<-left_join(municipios,superfice_afect,by="NOMGEO")# %>%
+  # filter(!is.na(Total_hectarea))
+  
+
+
+
+
+
+```
+
+
+```{r}
+tm_shape(data_tercer_mapa) + 
+  tm_polygons() + 
+  tm_bubbles(size = "Total_hectarea", 
+             alpha = 1, 
+             col = "red",
+             title.size = "Hectareas afectadas en México.
+             Semana 1: 2022")
+```
+
+
+
+
+El tipo de vegetación afecta a areas afectadas? i.e por la vegetación se puede quemar mas area?
+
+```{r}
+Vegetacion<-semana_1%>%
+   dplyr::select(`Tipo de Vegetación`)%>%
+  mutate(Hectarea_afectada=semana_1$`Total ha`)%>%
+  rename(Tipo_Vegetacion=`Tipo de Vegetación`)
+
+```
+
+
+```{r}
+modelo_1<-lm(Hectarea_afectada~Tipo_Vegetacion,data = Vegetacion)
+summary(modelo_1) # No hay significancia 
+```
+
+```{r}
+library(GGally)
+plot1 <- ggplot(data = Vegetacion, aes(Hectarea_afectada, modelo_1$residuals)) +
+    geom_point() + geom_smooth(color = "firebrick") + geom_hline(yintercept = 0) +
+    theme_bw()
+plot1
+#Relacion no lineal, el modelo no sirve por ahora
+```
+
+
+```{r}
+Vegetacion$Tipo_Vegetacion<-as.factor(Vegetacion$Tipo_Vegetacion)
+pairs(x=Vegetacion)
+```
+
+
+
+No existe ninguna correlación,ninguna afectación etc etc etc. De la semana 1 el Tipo de Vegetación con más incendios fue el Bosque Pino, sin embargo en que más hectarea afectada abarcó fue uno de tipo Selva Baja Caudicifolia. Como se observa en la gráfica
+
+```{r}
+ggplot(data = Vegetacion, mapping=aes(x = Hectarea_afectada, y = Tipo_Vegetacion, color=Tipo_Vegetacion)) +
+geom_boxplot() +
+geom_jitter(width = 0.1) +
+theme_bw() + theme(legend.position = "none")+
+  labs(title = "Hectarea afectada por tipo de vegetación",x="Hectarea afectada",y="Tipo de Vegetación",
+       subtitle = "Incendios Forestales: Semana_1 2022",caption = "@coto_tapia, Datos:CONAFOR")
+```
+
+
+
+
+
+
+
