@@ -8,3 +8,10 @@ Cabe recalcar que la estadística del año 2022 es de carácter preliminar, debi
 
 [![github-1.png](https://i.postimg.cc/FHz65CsZ/github-1.png)](https://postimg.cc/Mnk51DBM)
 
+## Tabla de incidencia y hectareas afectadas 
+
+[![git-2.png](https://i.postimg.cc/QCXFHTFX/git-2.png)](https://postimg.cc/0MBk4rG3)
+
+
+
+
