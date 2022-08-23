@@ -1,4 +1,4 @@
-# Reporte de Incendios Forestales.Mexico 2022 Semana1_Rstudio
+# Dashboard estático / Reporte de Incendios Forestales.Mexico 2022 Semana1_Rstudio
 
 ## Reporte semanal de los Incendios Forestales en México Semana 1
 
